@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>验证码</title>
+</head>
+<style>
+  .main {
+    width: 1000px;
+    margin: 0 auto;
+    padding-top: 100px;
+  }
+
+  .code {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    outline: 0;
+    font-size: 16px;
+  }
+
+  .code-img {
+    vertical-align: middle;
+    margin-left: 20px;
+  }
+
+  .btn {
+    cursor: pointer;
+    color: #fff;
+    background-color: #409eff;
+    border: 1px solid #409eff;
+    text-align: center;
+    box-sizing: border-box;
+    outline: 0;
+    margin: 0;
+    font-weight: 500;
+    padding: 12px 20px;
+    font-size: 14px;
+    border-radius: 4px;
+  }
+</style>
+
+<body>
+  <div class="main">
+    <div>
+      <input type="text" class="code" id="code">
+      <img id="codeImg" src="" alt="">
+      <span id="code1"></span>
+    </div>
+    <button class="btn" onclick="getCodeImg()">验证</button>
+  </div>
+</body>
+
+</html>
+<script>
+  window.onload = function () {
+    getCodeImg();
+  }
+  async function getCodeImg() {
+    // 请求接口获取验证码数据
+    // fetch 默认是get请求
+    let response = await fetch('http://127.0.0.1:3002/captcha');
+    response.json().then(res => {
+      document.querySelector('#codeImg').src = res.img; //渲染验证码图片
+      document.getElementById("code1").innerHTML = res.text
+    })
+  }
+</script>
