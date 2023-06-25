@@ -24,7 +24,7 @@ app.use(bodyParser.raw({
 
 app.all('*', (_, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
-  res.header('Access-Control-Allow-Headers', 'authorization, Content-Type')
+  res.header('Access-Control-Allow-Headers', 'authorization, Content-Type, X-Custom-Header')
   res.header('Access-Control-Allow-Methods', '*')
   next()
 })
@@ -65,7 +65,7 @@ router.post('/config', auth, async (req, res) => {
   }
 })
 
-router.post('/session', async (req, res) => {
+router.post('/session', auth, async (req, res) => {
   try {
     const AUTH_SECRET_KEY = process.env.AUTH_SECRET_KEY
     const hasAuth = isNotEmptyString(AUTH_SECRET_KEY)
@@ -76,7 +76,7 @@ router.post('/session', async (req, res) => {
   }
 })
 
-router.post('/verify', async (req, res) => {
+router.post('/verify', auth, async (req, res) => {
   try {
     const { token } = req.body as { token: string }
     if (!token)
@@ -92,7 +92,7 @@ router.post('/verify', async (req, res) => {
   }
 })
 
-router.post('/speech-to-text', async (req, res) => {
+router.post('/speech-to-text', auth, async (req, res) => {
   const audioData = req.body // 从请求中获取音频数据
 
   // 调用语音识别函数
