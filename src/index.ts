@@ -1,16 +1,26 @@
 import express from 'express'
+import bodyParser from 'body-parser'
 import type { RequestProps } from './types'
 import type { ChatMessage } from './chatgpt'
 import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
 import { auth } from './middleware/auth'
 import { limiter } from './middleware/limiter'
 import { isNotEmptyString } from './utils/is'
+import { generateAudioFile, recognizeSpeechFromFile } from './azureSpeech'
+
+console.log(generateAudioFile)
 
 const app = express()
 const router = express.Router()
 
 app.use(express.static('public'))
 app.use(express.json())
+
+// 解析 audio/wav 和 multipart/form-data 请求体
+app.use(bodyParser.raw({
+  type: ['audio/wav', 'multipart/form-data'],
+  limit: '50mb',
+}))
 
 app.all('*', (_, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
@@ -76,6 +86,19 @@ router.post('/verify', async (req, res) => {
       throw new Error('密钥无效 | Secret key is invalid')
 
     res.send({ status: 'Success', message: 'Verify successfully', data: null })
+  }
+  catch (error) {
+    res.send({ status: 'Fail', message: error.message, data: null })
+  }
+})
+
+router.post('/speech-to-text', async (req, res) => {
+  const audioData = req.body // 从请求中获取音频数据
+
+  // 调用语音识别函数
+  try {
+    const recognizedText = await recognizeSpeechFromFile(audioData)
+    res.send({ status: 'Success', message: 'successfully', data: { text: recognizedText } })
   }
   catch (error) {
     res.send({ status: 'Fail', message: error.message, data: null })

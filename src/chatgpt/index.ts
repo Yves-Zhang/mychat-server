@@ -1,16 +1,13 @@
 import * as dotenv from 'dotenv'
 import 'isomorphic-fetch'
-import type { ChatGPTAPIOptions, ChatMessage, SendMessageOptions } from 'chatgpt'
-import { ChatGPTAPI, ChatGPTUnofficialProxyAPI } from 'chatgpt'
-import { SocksProxyAgent } from 'socks-proxy-agent'
-import httpsProxyAgent from 'https-proxy-agent'
-import fetch from 'node-fetch'
+// import { generateAudioFile } from '../azureSpeech'
+import type { ChatGPTUnofficialProxyAPI } from '../utils/chatgpt'
+import { AuzerChatGptAPI } from '../utils/chatgpt'
+import type { ChatGPTAPIOptions, ChatMessage, SendMessageOptions } from '../utils/chatgpt/types'
 import { sendResponse } from '../utils'
 import { isNotEmptyString } from '../utils/is'
-import type { ApiModel, ChatContext, ChatGPTUnofficialProxyAPIOptions, ModelConfig } from '../types'
+import type { ApiModel, ChatContext, ModelConfig } from '../types'
 import type { RequestOptions, SetProxyOptions, UsageResponse } from './types'
-
-const { HttpsProxyAgent } = httpsProxyAgent
 
 dotenv.config()
 
@@ -32,16 +29,19 @@ const model = isNotEmptyString(process.env.OPENAI_API_MODEL) ? process.env.OPENA
 if (!isNotEmptyString(process.env.OPENAI_API_KEY) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
   throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
 
-let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
+let api: AuzerChatGptAPI | ChatGPTUnofficialProxyAPI
+
+const MICROSOFT_AZURE_OPENAI_ENDPOINT = process.env.MICROSOFT_AZURE_OPENAI_ENDPOINT
+const MICROSOFT_AZURE_OPENAI_KEY = process.env.MICROSOFT_AZURE_OPENAI_KEY
+const MICROSOFT_AZURE_OPENAI_VERSION = process.env.MICROSOFT_AZURE_OPENAI_VERSION;
 
 (async () => {
   // More Info: https://github.com/transitive-bullshit/chatgpt-api
-
-  if (isNotEmptyString(process.env.OPENAI_API_KEY)) {
-    const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
+  if (isNotEmptyString(MICROSOFT_AZURE_OPENAI_KEY)) {
+    const OPENAI_API_BASE_URL = MICROSOFT_AZURE_OPENAI_ENDPOINT
 
     const options: ChatGPTAPIOptions = {
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: MICROSOFT_AZURE_OPENAI_KEY,
       completionParams: { model },
       debug: !disableDebug,
     }
@@ -60,25 +60,13 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
     }
 
     if (isNotEmptyString(OPENAI_API_BASE_URL))
-      options.apiBaseUrl = `${OPENAI_API_BASE_URL}/v1`
+      options.apiBaseUrl = `${OPENAI_API_BASE_URL}`
 
-    setupProxy(options)
+    if (isNotEmptyString(MICROSOFT_AZURE_OPENAI_VERSION))
+      options.apiVersion = `${MICROSOFT_AZURE_OPENAI_VERSION}`
 
-    api = new ChatGPTAPI({ ...options })
-    apiModel = 'ChatGPTAPI'
-  }
-  else {
-    const options: ChatGPTUnofficialProxyAPIOptions = {
-      accessToken: process.env.OPENAI_ACCESS_TOKEN,
-      apiReverseProxyUrl: isNotEmptyString(process.env.API_REVERSE_PROXY) ? process.env.API_REVERSE_PROXY : 'https://bypass.churchless.tech/api/conversation',
-      model,
-      debug: !disableDebug,
-    }
-
-    setupProxy(options)
-
-    api = new ChatGPTUnofficialProxyAPI({ ...options })
-    apiModel = 'ChatGPTUnofficialProxyAPI'
+    api = new AuzerChatGptAPI({ ...options })
+    apiModel = 'AuzerChatGptAPI'
   }
 })()
 
@@ -87,25 +75,36 @@ async function chatReplyProcess(options: RequestOptions) {
   try {
     let options: SendMessageOptions = { timeoutMs }
 
-    if (apiModel === 'ChatGPTAPI') {
+    if (apiModel === 'AuzerChatGptAPI') {
       if (isNotEmptyString(systemMessage))
         options.systemMessage = systemMessage
       options.completionParams = { model, temperature, top_p }
     }
 
     if (lastContext != null) {
-      if (apiModel === 'ChatGPTAPI')
+      if (apiModel === 'AuzerChatGptAPI')
         options.parentMessageId = lastContext.parentMessageId
       else
         options = { ...lastContext }
     }
 
-    const response = await api.sendMessage(message, {
+    const response: any = await api.sendMessage(message, {
       ...options,
       onProgress: (partialResponse) => {
         process?.(partialResponse)
       },
     })
+
+    // try {
+    //   const audio: any = await generateAudioFile(response.text, `${new Date()}`)
+    //   const audioBase64 = Buffer.from(audio).toString('base64')
+    //   response.audio = audioBase64
+
+    //   console.log(audioBase64, 999)
+    // }
+    // catch (error: any) {
+    //   console.error(error)
+    // }
 
     return sendResponse({ type: 'Success', data: response })
   }
@@ -179,34 +178,6 @@ async function chatConfig() {
     type: 'Success',
     data: { apiModel, reverseProxy, timeoutMs, socksProxy, httpsProxy, usage },
   })
-}
-
-function setupProxy(options: SetProxyOptions) {
-  if (isNotEmptyString(process.env.SOCKS_PROXY_HOST) && isNotEmptyString(process.env.SOCKS_PROXY_PORT)) {
-    const agent = new SocksProxyAgent({
-      hostname: process.env.SOCKS_PROXY_HOST,
-      port: process.env.SOCKS_PROXY_PORT,
-      userId: isNotEmptyString(process.env.SOCKS_PROXY_USERNAME) ? process.env.SOCKS_PROXY_USERNAME : undefined,
-      password: isNotEmptyString(process.env.SOCKS_PROXY_PASSWORD) ? process.env.SOCKS_PROXY_PASSWORD : undefined,
-    })
-    options.fetch = (url, options) => {
-      return fetch(url, { agent, ...options })
-    }
-  }
-  else if (isNotEmptyString(process.env.HTTPS_PROXY) || isNotEmptyString(process.env.ALL_PROXY)) {
-    const httpsProxy = process.env.HTTPS_PROXY || process.env.ALL_PROXY
-    if (httpsProxy) {
-      const agent = new HttpsProxyAgent(httpsProxy)
-      options.fetch = (url, options) => {
-        return fetch(url, { agent, ...options })
-      }
-    }
-  }
-  else {
-    options.fetch = (url, options) => {
-      return fetch(url, { ...options })
-    }
-  }
 }
 
 function currentModel(): ApiModel {
