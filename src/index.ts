@@ -1,19 +1,19 @@
 import express from 'express'
 import bodyParser from 'body-parser'
+import svgCaptcha from 'svg-captcha'
 import type { RequestProps } from './types'
 import type { ChatMessage } from './chatgpt'
 import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
 import { auth } from './middleware/auth'
 import { limiter } from './middleware/limiter'
 import { isNotEmptyString } from './utils/is'
-import { generateAudioFile, recognizeSpeechFromFile } from './azureSpeech'
-
-console.log(generateAudioFile)
+import { recognizeSpeechFromFile } from './azureSpeech'
+import { convertSvgToImage } from './utils/svgToJpg'
 
 const app = express()
 const router = express.Router()
 
-app.use(express.static('public'))
+// app.use('/www', express.static('public'))
 app.use(express.json())
 
 // 解析 audio/wav 和 multipart/form-data 请求体
@@ -103,6 +103,34 @@ router.post('/speech-to-text', async (req, res) => {
   catch (error) {
     res.send({ status: 'Fail', message: error.message, data: null })
   }
+})
+
+// 返回验证码文本和 SVG 数据URI
+router.get('/captcha', async (req, res) => {
+  const options: any = {
+    mathMin: req.query.mathMin || 1,
+    mathMax: req.query.mathMax || 30,
+    size: req.query.size || 6,
+    ignoreChars: req.query.ignoreChars || '0o1iILl',
+    noise: req.query.noise || 5,
+    color: req.query.color || true,
+    background: req.query.background || '#fff',
+    width: req.query.width || 150,
+    height: req.query.height || 50,
+  }
+
+  function randomChoice() {
+    return Math.floor(Math.random() * 2) + 1
+  }
+
+  let type = 'create'
+  if (randomChoice() === 1)
+    type = 'createMathExpr'
+
+  const captcha = svgCaptcha[type](options)
+
+  const img = await convertSvgToImage(captcha.data)
+  res.json({ text: captcha.text, img })
 })
 
 app.use('', router)

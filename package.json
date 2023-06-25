@@ -43,6 +43,8 @@
     "p-timeout": "^6.1.2",
     "quick-lru": "^6.1.1",
     "socks-proxy-agent": "^7.0.0",
+    "svg-captcha": "^1.4.0",
+    "svg2img": "1.0.0-beta.2",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
