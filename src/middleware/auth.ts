@@ -36,6 +36,7 @@ const auth = async (req, res, next) => {
   const Authorization = req.header('X-Custom-Header')
 
   if (!Authorization) {
+    globalThis.console.log('没有Authorization')
     res.send({ status: 'Unauthorized', message: 'Unauthorized err' ?? 'Please authenticate.', data: null })
     return
   }
@@ -44,10 +45,12 @@ const auth = async (req, res, next) => {
     const authString = decryptData(Authorization, 'koudingtu2023')
     const authInfo = JSON.parse(authString)
 
-    if (getBJTime() - authInfo.timer > 1000 * 60 * 2 || !isDomainMatch(authInfo.domain))
+    if (getBJTime() - authInfo.timer > 1000 * 60 * 2 || !isDomainMatch(authInfo.domain)) {
       res.send({ status: 'Unauthorized', message: 'Unauthorized：Expired permission' ?? 'Please authenticate.', data: null })
+      globalThis.console.log('Unauthorized：Expired', authInfo.domain)
+    }
 
-    else next()
+    else { next() }
   }
 }
 
