@@ -37,7 +37,20 @@ const auth = async (req, res, next) => {
 
   if (!Authorization) {
     globalThis.console.log('没有Authorization')
-    res.send({ status: 'Unauthorized', message: 'Unauthorized err' ?? 'Please authenticate.', data: null })
+    res.send({
+      status: 'Success',
+      message: 'successfully',
+      data: {
+        role: 'assistant',
+        id: 'chatcmpl-000',
+        parentMessageId: '000',
+        text: '当前服务为盗版接口，请访问正版网站使用， https://new-bility.com',
+        delta: '.',
+        detail: {
+          id: '0000',
+        },
+      },
+    })
     return
   }
 
