@@ -44,7 +44,7 @@ const auth = async (req, res, next) => {
     const authString = decryptData(Authorization, 'koudingtu2023')
     const authInfo = JSON.parse(authString)
 
-    if (getBJTime() - authInfo.timer > 1000 * 2 || !isDomainMatch(authInfo.domain))
+    if (getBJTime() - authInfo.timer > 1000 * 60 * 2 || !isDomainMatch(authInfo.domain))
       res.send({ status: 'Unauthorized', message: 'Unauthorized：Expired permission' ?? 'Please authenticate.', data: null })
 
     else next()
