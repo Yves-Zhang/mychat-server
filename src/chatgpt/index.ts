@@ -95,17 +95,6 @@ async function chatReplyProcess(options: RequestOptions) {
       },
     })
 
-    // try {
-    //   const audio: any = await generateAudioFile(response.text, `${new Date()}`)
-    //   const audioBase64 = Buffer.from(audio).toString('base64')
-    //   response.audio = audioBase64
-
-    //   console.log(audioBase64, 999)
-    // }
-    // catch (error: any) {
-    //   console.error(error)
-    // }
-
     return sendResponse({ type: 'Success', data: response })
   }
   catch (error: any) {
