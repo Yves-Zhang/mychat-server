@@ -133,24 +133,6 @@ router.get('/captcha', async (req, res) => {
   res.json({ text: captcha.text, img })
 })
 
-// 返回验证码文本和 SVG 数据URI
-router.get('/fake', async (req, res) => {
-  res.send({
-    status: 'Success',
-    message: 'successfully',
-    data: {
-      role: 'assistant',
-      id: 'chatcmpl-000',
-      parentMessageId: '000',
-      text: '当前服务为盗版接口，请访问正版网站使用， https://new-bility.com',
-      delta: '.',
-      detail: {
-        id: '0000',
-      },
-    },
-  })
-})
-
 app.use('', router)
 app.use('/api', router)
 app.set('trust proxy', 1)
