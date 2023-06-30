@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv'
 import 'isomorphic-fetch'
 // import { generateAudioFile } from '../azureSpeech'
+import { generateAudioFile } from 'src/azureSpeech'
 import type { ChatGPTUnofficialProxyAPI } from '../utils/chatgpt'
 import { AuzerChatGptAPI } from '../utils/chatgpt'
 import type { ChatGPTAPIOptions, ChatMessage, SendMessageOptions } from '../utils/chatgpt/types'
@@ -106,6 +107,40 @@ async function chatReplyProcess(options: RequestOptions) {
   }
 }
 
+async function chatReply(options: RequestOptions) {
+  const { message, lastContext, systemMessage, temperature, top_p } = options
+  try {
+    let options: SendMessageOptions = { timeoutMs }
+
+    if (apiModel === 'AuzerChatGptAPI') {
+      if (isNotEmptyString(systemMessage))
+        options.systemMessage = systemMessage
+      options.completionParams = { model, temperature, top_p }
+    }
+
+    if (lastContext != null) {
+      if (apiModel === 'AuzerChatGptAPI')
+        options.parentMessageId = lastContext.parentMessageId
+      else
+        options = { ...lastContext }
+    }
+
+    const response: any = await api.sendMessage(message, {
+      ...options,
+    })
+
+    const audio = await generateAudioFile(response.text)
+    return sendResponse({ type: 'Success', data: { ...response, audio } })
+  }
+  catch (error: any) {
+    const code = error.statusCode
+    global.console.log(error)
+    if (Reflect.has(ErrorCodeMessage, code))
+      return sendResponse({ type: 'Fail', message: ErrorCodeMessage[code] })
+    return sendResponse({ type: 'Fail', message: error.message ?? 'Please check the back-end console' })
+  }
+}
+
 async function fetchUsage() {
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY
   const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
@@ -175,4 +210,4 @@ function currentModel(): ApiModel {
 
 export type { ChatContext, ChatMessage }
 
-export { chatReplyProcess, chatConfig, currentModel }
+export { chatReplyProcess, chatConfig, currentModel, chatReply }

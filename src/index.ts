@@ -3,7 +3,7 @@ import bodyParser from 'body-parser'
 import svgCaptcha from 'svg-captcha'
 import type { RequestProps } from './types'
 import type { ChatMessage } from './chatgpt'
-import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
+import { chatConfig, chatReply, chatReplyProcess, currentModel } from './chatgpt'
 import { auth } from './middleware/auth'
 import { limiter } from './middleware/limiter'
 import { isNotEmptyString } from './utils/is'
@@ -46,6 +46,28 @@ router.post('/chat-process', [auth, limiter], async (req, res) => {
       temperature,
       top_p,
     })
+  }
+  catch (error) {
+    res.write(JSON.stringify(error))
+  }
+  finally {
+    res.end()
+  }
+})
+
+router.post('/chat', [auth, limiter], async (req, res) => {
+  res.setHeader('Content-type', 'application/json')
+
+  try {
+    const { prompt, options = {}, systemMessage, temperature, top_p } = req.body as RequestProps
+    const response = await chatReply({
+      message: prompt,
+      lastContext: options,
+      systemMessage,
+      temperature,
+      top_p,
+    })
+    res.send(response)
   }
   catch (error) {
     res.write(JSON.stringify(error))
@@ -101,6 +123,7 @@ router.post('/speech-to-text', auth, async (req, res) => {
     res.send({ status: 'Success', message: 'successfully', data: { text: recognizedText } })
   }
   catch (error) {
+    globalThis.console.log('error', error)
     res.send({ status: 'Fail', message: error.message, data: null })
   }
 })

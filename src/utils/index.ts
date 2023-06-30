@@ -2,6 +2,7 @@ interface SendResponseOptions<T = any> {
   type: 'Success' | 'Fail'
   message?: string
   data?: T
+  audio?: any
 }
 
 export function sendResponse<T>(options: SendResponseOptions<T>) {
@@ -10,6 +11,7 @@ export function sendResponse<T>(options: SendResponseOptions<T>) {
       message: options.message ?? null,
       data: options.data ?? null,
       status: options.type,
+      audio: options.audio ?? null,
     })
   }
 

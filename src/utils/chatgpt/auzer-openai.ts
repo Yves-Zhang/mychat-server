@@ -203,7 +203,7 @@ export class AuzerChatGptAPI {
           headers['OpenAI-Organization'] = this._apiOrg
 
         if (this._debug)
-          console.log(`sendMessage (${numTokens} tokens)`, body)
+          globalThis.console.log(`sendMessage (${numTokens} tokens)`, body)
 
         if (stream) {
           fetchSSE(
@@ -270,7 +270,7 @@ export class AuzerChatGptAPI {
             const response: types.openai.CreateChatCompletionResponse
               = await res.json()
             if (this._debug)
-              console.log(response)
+              globalThis.console.log(response)
 
             if (response?.id)
               result.id = response.id
