@@ -3,7 +3,7 @@ import 'isomorphic-fetch'
 // import { generateAudioFile } from '../azureSpeech'
 import { generateAudioFile } from 'src/azureSpeech'
 import type { ChatGPTUnofficialProxyAPI } from '../utils/chatgpt'
-import { AuzerChatGptAPI } from '../utils/chatgpt'
+import { AuzerChatGptAPI, ChatGPTAPI } from '../utils/chatgpt'
 import type { ChatGPTAPIOptions, ChatMessage, SendMessageOptions } from '../utils/chatgpt/types'
 import { sendResponse } from '../utils'
 import { isNotEmptyString } from '../utils/is'
@@ -11,6 +11,37 @@ import type { ApiModel, ChatContext, ModelConfig } from '../types'
 import type { RequestOptions, SetProxyOptions, UsageResponse } from './types'
 
 dotenv.config()
+
+const MICROSOFT_AZURE_OPENAI_ENDPOINT = process.env.MICROSOFT_AZURE_OPENAI_ENDPOINT
+const MICROSOFT_AZURE_OPENAI_KEY = process.env.MICROSOFT_AZURE_OPENAI_KEY
+const MICROSOFT_AZURE_OPENAI_VERSION = process.env.MICROSOFT_AZURE_OPENAI_VERSION
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const OPENAI_API_BASE_URL = process.env.OPENAI_API_BASE_URL
+
+// 多种API的支持
+const chatComponents: Record<string, any> = {
+  AuzerAPI: {
+    Class: AuzerChatGptAPI,
+    Model: 'AuzerChatGptAPI',
+    BaseUrl: MICROSOFT_AZURE_OPENAI_ENDPOINT,
+    Key: MICROSOFT_AZURE_OPENAI_KEY,
+  },
+  OpenaiAPI: {
+    Class: ChatGPTAPI,
+    Model: 'ChatGPTAPI',
+    BaseUrl: `${OPENAI_API_BASE_URL}/v1`,
+    Key: OPENAI_API_KEY,
+  },
+}
+
+let API: any = null
+// # MICROSOFT_AZURE_OPENAI | OPENAI
+if (process.env.OPENAI_API_TYPE === 'MICROSOFT_AZURE_OPENAI')
+  API = chatComponents.AuzerAPI
+
+if (process.env.OPENAI_API_TYPE === 'OPENAI')
+  API = chatComponents.OpenaiAPI
 
 const ErrorCodeMessage: Record<string, string> = {
   401: '[OpenAI] 提供错误的API密钥 | Incorrect API key provided',
@@ -27,22 +58,18 @@ const disableDebug: boolean = process.env.OPENAI_API_DISABLE_DEBUG === 'true'
 let apiModel: ApiModel
 const model = isNotEmptyString(process.env.OPENAI_API_MODEL) ? process.env.OPENAI_API_MODEL : 'gpt-3.5-turbo'
 
-if (!isNotEmptyString(process.env.OPENAI_API_KEY) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
+if (!isNotEmptyString(API.Key) && !isNotEmptyString(process.env.OPENAI_ACCESS_TOKEN))
   throw new Error('Missing OPENAI_API_KEY or OPENAI_ACCESS_TOKEN environment variable')
 
-let api: AuzerChatGptAPI | ChatGPTUnofficialProxyAPI
-
-const MICROSOFT_AZURE_OPENAI_ENDPOINT = process.env.MICROSOFT_AZURE_OPENAI_ENDPOINT
-const MICROSOFT_AZURE_OPENAI_KEY = process.env.MICROSOFT_AZURE_OPENAI_KEY
-const MICROSOFT_AZURE_OPENAI_VERSION = process.env.MICROSOFT_AZURE_OPENAI_VERSION;
+let api: AuzerChatGptAPI | ChatGPTUnofficialProxyAPI | ChatGPTAPI
 
 (async () => {
   // More Info: https://github.com/transitive-bullshit/chatgpt-api
-  if (isNotEmptyString(MICROSOFT_AZURE_OPENAI_KEY)) {
-    const OPENAI_API_BASE_URL = MICROSOFT_AZURE_OPENAI_ENDPOINT
+  if (isNotEmptyString(API.Key)) {
+    const OPENAI_API_BASE_URL = API.BaseUrl
 
     const options: ChatGPTAPIOptions = {
-      apiKey: MICROSOFT_AZURE_OPENAI_KEY,
+      apiKey: API.Key,
       completionParams: { model },
       debug: !disableDebug,
     }
@@ -60,14 +87,14 @@ const MICROSOFT_AZURE_OPENAI_VERSION = process.env.MICROSOFT_AZURE_OPENAI_VERSIO
       }
     }
 
-    if (isNotEmptyString(OPENAI_API_BASE_URL))
+    if (isNotEmptyString(API.BaseUrl))
       options.apiBaseUrl = `${OPENAI_API_BASE_URL}`
 
     if (isNotEmptyString(MICROSOFT_AZURE_OPENAI_VERSION))
       options.apiVersion = `${MICROSOFT_AZURE_OPENAI_VERSION}`
 
-    api = new AuzerChatGptAPI({ ...options })
-    apiModel = 'AuzerChatGptAPI'
+    api = new API.Class({ ...options })
+    apiModel = API.Model
   }
 })()
 
@@ -76,14 +103,14 @@ async function chatReplyProcess(options: RequestOptions) {
   try {
     let options: SendMessageOptions = { timeoutMs }
 
-    if (apiModel === 'AuzerChatGptAPI') {
+    if (apiModel === API.Model) {
       if (isNotEmptyString(systemMessage))
         options.systemMessage = systemMessage
       options.completionParams = { model, temperature, top_p }
     }
 
     if (lastContext != null) {
-      if (apiModel === 'AuzerChatGptAPI')
+      if (apiModel === API.Model)
         options.parentMessageId = lastContext.parentMessageId
       else
         options = { ...lastContext }
@@ -112,14 +139,14 @@ async function chatReply(options: RequestOptions) {
   try {
     let options: SendMessageOptions = { timeoutMs }
 
-    if (apiModel === 'AuzerChatGptAPI') {
+    if (apiModel === API.Model) {
       if (isNotEmptyString(systemMessage))
         options.systemMessage = systemMessage
       options.completionParams = { model, temperature, top_p }
     }
 
     if (lastContext != null) {
-      if (apiModel === 'AuzerChatGptAPI')
+      if (apiModel === API.Model)
         options.parentMessageId = lastContext.parentMessageId
       else
         options = { ...lastContext }
